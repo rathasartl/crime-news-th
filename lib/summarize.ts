@@ -32,12 +32,23 @@ const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่
 {"summary_th": "...", "category": "murder|theft_robbery|fraud_scam|drugs|cybercrime|white_collar|sexual|traffic|other_crime|not_crime", "confidence": 0.0-1.0, "location": "ชื่อจังหวัด/เข็ต/หรือ null"}`;
 
 let client: Anthropic | null = null;
-function getClient(): Anthropic {
+let clientDisabled = false;
+
+function getClient(): Anthropic | null {
+  if (clientDisabled) return null;
   if (client) return client;
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
+  if (!apiKey || apiKey.length === 0) {
+    console.warn("[summarize] ANTHROPIC_API_KEY missing — storing articles without AI summary");
+    clientDisabled = true;
+    return null;
+  }
   client = new Anthropic({ apiKey });
   return client;
+}
+
+export function isAIDisabled(): boolean {
+  return process.env.ANTHROPIC_API_KEY == null || process.env.ANTHROPIC_API_KEY.length === 0;
 }
 
 const VALID: CrimeCategory[] = [
@@ -62,6 +73,16 @@ function extractJson(text: string): unknown {
 export async function summarize(item: FetchedItem): Promise<AISummary> {
   const input = buildPromptInput(item);
   const anthropic = getClient();
+
+  // Graceful degradation: no API key → store without summary
+  if (!anthropic) {
+    return {
+      summary_th: item.rawExcerpt ?? item.title,
+      category: "other_crime",
+      confidence: 0,
+      location: null
+    };
+  }
 
   const response = await anthropic.messages.create({
     model: MODEL,

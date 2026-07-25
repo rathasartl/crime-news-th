@@ -87,9 +87,9 @@ create index if not exists articles_category_published_idx
 -- ---------------------------------------------------------------------------
 -- Helper: text search (simple, no Thai tokenizer — uses ILIKE)
 -- ---------------------------------------------------------------------------
+create extension if not exists pg_trgm;
 create index if not exists articles_title_trgm_idx
   on articles using gin (title gin_trgm_ops);
-create extension if not exists pg_trgm;
 
 -- ---------------------------------------------------------------------------
 -- Storage budget guard: trim to last 30 days nightly
