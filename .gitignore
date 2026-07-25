@@ -9,3 +9,5 @@ build/
 .DS_Store
 *.log
 bun.lock
+tsconfig.tsbuildinfo
+supabase/.temp/
