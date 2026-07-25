@@ -31,7 +31,7 @@ const USER_AGENT =
 
 export async function fetchFeed(url: string): Promise<FetchedItem[]> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
+  const timeout = setTimeout(() => controller.abort(), 20_000);
 
   let res: Response;
   try {

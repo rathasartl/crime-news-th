@@ -170,7 +170,11 @@ async function main() {
     `[fetch-news] totals: fetched=${totalFetched} inserted=${totalInserted} duplicates=${totalDupes} not_crime=${totalNotCrime} errors=${totalErrors} in ${elapsed}s`
   );
 
-  if (totalErrors > 0 && totalInserted === 0) {
+  // Exit non-zero only if we got ZERO new articles AND every source failed.
+  // Per-source timeouts happen regularly (RSS feeds occasionally stall); that's not fatal
+  // as long as something is flowing through.
+  const totalSuccessfulSources = results.filter((r) => r.errors.length === 0).length;
+  if (totalErrors > 0 && totalSuccessfulSources === 0) {
     process.exit(1);
   }
 }
