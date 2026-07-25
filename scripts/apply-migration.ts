@@ -25,19 +25,10 @@ async function main() {
       const path = resolve(process.cwd(), f);
       const sql = readFileSync(path, "utf8");
       console.log(`[migrate] applying ${f} (${sql.length} bytes)`);
-      // pg.query supports multi-statement when no parameters are passed
-      const result = await pool.query(sql);
+      await pool.query(sql);
       console.log(`[migrate] ✓ ${f} applied`);
-      if (result.length && Array.isArray(result)) {
-        for (const r of result as any[]) {
-          if (r?.command === "SELECT" && r.rows?.length > 0) {
-            console.log(`[migrate] ${r.rows.length} rows returned`);
-          }
-        }
-      }
     }
 
-    // Verify
     const verify = await pool.query("SELECT slug, name FROM sources ORDER BY name");
     console.log(`\n[migrate] sources in DB (${verify.rows.length}):`);
     for (const r of verify.rows) {
