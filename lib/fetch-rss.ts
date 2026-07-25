@@ -10,6 +10,22 @@ const parser = new XMLParser({
   numberParseOptions: { leadingZeros: false, hex: false, skipLike: /\d+/ }
 });
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
+  nbsp: " ", mdash: "—", ndash: "–", hellip: "…",
+  lsquo: "‘", rsquo: "’",
+  ldquo: "“", rdquo: "”"
+};
+
+const ENTITY_RE = /&(?:#x([0-9a-fA-F]+)|#([0-9]+)|([a-zA-Z]+));/g;
+export function decodeEntities(s: string): string {
+  return s.replace(ENTITY_RE, (m, hex, dec, name) => {
+    if (hex) return String.fromCodePoint(parseInt(hex, 16));
+    if (dec) return String.fromCodePoint(parseInt(dec, 10));
+    return NAMED_ENTITIES[name] ?? m;
+  });
+}
+
 const USER_AGENT =
   "crime-news-th/0.1 (+https://github.com/local/crime-news-th; RSS reader; Bun/1.x)";
 
@@ -65,7 +81,7 @@ function extractFirstImg(html: unknown): string | null {
 const TAG_RE = /<[^>]+>/g;
 function stripHtml(s: unknown): string | null {
   if (typeof s !== "string") return null;
-  const stripped = s.replace(TAG_RE, " ").replace(/\s+/g, " ").trim();
+  const stripped = decodeEntities(s.replace(TAG_RE, " ").replace(/\s+/g, " ")).trim();
   return stripped.length > 0 ? stripped : null;
 }
 
@@ -114,9 +130,10 @@ export function parseFeed(xml: string, sourceUrl?: string): FetchedItem[] {
       continue;
     }
     const url = link.startsWith("http") ? link : channelBaseUrl ? channelBaseUrl + link : link;
+    const cleanTitle = decodeEntities(title);
 
     items.push({
-      title,
+      title: cleanTitle,
       url,
       publishedAt: parseDate(item.pubDate ?? item.published ?? item.updated),
       rawExcerpt: stripHtml(item.description ?? item.summary),
