@@ -56,15 +56,21 @@ export async function getFeed(opts: FeedOptions = {}): Promise<FeedResult> {
   const category = opts.category ?? null;
   const includeNotCrime = opts.includeNotCrime ?? false;
 
+  const feedQuery = sb
+    .from("articles")
+    .select(
+      "id, source_id, url, title, raw_excerpt, content_html, image_url, published_at, summary_th, category, confidence, location, source_language, is_translated, click_count, hidden, source:sources(slug, name, language, country, emoji)"
+    )
+    .eq("hidden", false)
+    .gte("published_at", since)
+    .neq("category", includeNotCrime ? "_never_" : "not_crime");
+
+  if (category) {
+    feedQuery.eq("category", category);
+  }
+
   const [feedRes, countRes] = await Promise.all([
-    sb
-      .from("articles")
-      .select(
-        "id, source_id, url, title, raw_excerpt, content_html, image_url, published_at, summary_th, category, confidence, location, source_language, is_translated, click_count, hidden, source:sources(slug, name, language, country, emoji)"
-      )
-      .eq("hidden", false)
-      .gte("published_at", since)
-      .neq("category", includeNotCrime ? "_never_" : "not_crime")
+    feedQuery
       .order("published_at", { ascending: false })
       .limit(limit)
       .then((r) => {
@@ -90,11 +96,7 @@ export async function getFeed(opts: FeedOptions = {}): Promise<FeedResult> {
     categoryCounts[c] = (categoryCounts[c] ?? 0) + 1;
   }
 
-  const filtered = category
-    ? feedRes.filter((a: any) => a.category === category)
-    : feedRes;
-
-  const rows = filtered as unknown as Array<
+  const rows = feedRes as unknown as Array<
     Omit<Article, "source"> & {
       source:
         | { slug: string; name: string; language?: string; country?: string | null; emoji?: string | null }
