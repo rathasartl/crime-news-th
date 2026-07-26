@@ -9,28 +9,7 @@ const config: NextConfig = {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 3600,
     remotePatterns: [
-      { protocol: "https", hostname: "www.khaosod.co.th" },
-      { protocol: "https", hostname: "khaosod.co.th" },
-      { protocol: "https", hostname: "www.prachachat.net" },
-      { protocol: "https", hostname: "prachachat.net" },
-      { protocol: "https", hostname: "thestandard.co" },
-      { protocol: "https", hostname: "www.thestandard.co" },
-      { protocol: "https", hostname: "www.brighttv.co.th" },
-      { protocol: "https", hostname: "brighttv.co.th" },
-      { protocol: "https", hostname: "www.innnews.co.th" },
-      { protocol: "https", hostname: "innnews.co.th" },
-      { protocol: "https", hostname: "*.supabase.co" },
-      { protocol: "https", hostname: "www.bbc.com" },
-      { protocol: "https", hostname: "bbc.com" },
-      { protocol: "https", hostname: "www.theguardian.com" },
-      { protocol: "https", hostname: "theguardian.com" },
-      { protocol: "https", hostname: "www.nytimes.com" },
-      { protocol: "https", hostname: "nytimes.com" },
-      { protocol: "https", hostname: "www.aljazeera.com" },
-      { protocol: "https", hostname: "aljazeera.com" },
-      { protocol: "https", hostname: "abcnews.go.com" },
-      { protocol: "https", hostname: "www.cbsnews.com" },
-      { protocol: "https", hostname: "cbsnews.com" }
+      { protocol: "https", hostname: "**" }
     ]
   },
   experimental: {
