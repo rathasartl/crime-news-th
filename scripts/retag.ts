@@ -48,6 +48,7 @@ async function main() {
   let updated = 0;
   let active = 0;
   let idx = 0;
+  let abortReason: string | null = null;
   const queue = [...rows];
 
   await new Promise<void>((resolve) => {
@@ -94,12 +95,16 @@ async function main() {
           .catch((err) => {
             const msg = err instanceof Error ? err.message : String(err);
             console.error(`[retag] #${jobNum} ${article.id} summarize failed: ${msg}`);
+            if (msg.startsWith("GROQ_DAILY_LIMIT:")) {
+              abortReason = msg;
+              queue.length = 0;
+            }
           })
           .finally(() => {
             processed++;
             active--;
-            if (queue.length === 0 && active === 0) resolve();
-            else launch();
+            if ((queue.length === 0 && active === 0) || abortReason) resolve();
+            else if (!abortReason) launch();
           });
       }
     };
@@ -108,6 +113,10 @@ async function main() {
 
   const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
   console.log(`[retag] done: ${processed} processed, ${updated} updated in ${elapsed}s`);
+  if (abortReason) {
+    console.log(`[retag] aborted early: ${abortReason}`);
+    console.log(`[retag] next hourly cron will resume from where this stopped`);
+  }
 }
 
 main().catch((err) => {

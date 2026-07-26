@@ -5,6 +5,7 @@ const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MAX_RETRIES = 5;
 const RATE_LIMIT_PADDING_MS = 2000;
 const MIN_REQUEST_INTERVAL_MS = 12_000;
+const FATAL_RATE_LIMIT_MS = 5 * 60_000;
 let lastRequestMs = 0;
 
 const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่าวอาชญากรรมในไทย หน้าที่ของคุณ:
@@ -125,6 +126,11 @@ export async function summarize(item: FetchedItem, sourceLanguage?: string): Pro
           throw new Error(`Groq rate limit: ${json.error?.message ?? "429"}`);
         }
         const waitMs = parseRetryMs(json.error?.message) + RATE_LIMIT_PADDING_MS;
+        if (waitMs > FATAL_RATE_LIMIT_MS) {
+          throw new Error(
+            `GROQ_DAILY_LIMIT: ${Math.round(waitMs / 1000)}s wait — aborting; next cron run will resume`
+          );
+        }
         console.warn(`[summarize] 429 rate hit, waiting ${Math.round(waitMs / 1000)}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
         await new Promise((r) => setTimeout(r, waitMs));
         continue;
