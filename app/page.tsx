@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { TabBar } from "@/components/TabBar";
 
 export const revalidate = 60;
-export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 const VALID_CATEGORIES: CrimeCategory[] = [
   "murder", "theft_robbery", "fraud_scam", "drugs", "cybercrime",

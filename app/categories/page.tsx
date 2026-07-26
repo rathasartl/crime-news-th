@@ -5,7 +5,7 @@ import { CATEGORY_LABEL_TH, type CrimeCategory } from "@/lib/types";
 import { TabBar } from "@/components/TabBar";
 
 export const revalidate = 60;
-export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 export default async function CategoriesPage() {
   const { categoryCounts } = await getFeed({ limit: 1 });

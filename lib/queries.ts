@@ -2,7 +2,7 @@ import { getServerSupabase } from "./supabase-server";
 import type { Article, CrimeCategory } from "./types";
 
 const DEFAULT_LIMIT = 30;
-const DEFAULT_HOURS = 24;
+const DEFAULT_HOURS = 168;
 const CACHE_TTL_MS = 60_000;
 
 interface CacheEntry {
