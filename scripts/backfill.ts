@@ -1,4 +1,4 @@
-import { fetchFeedPaged } from "../lib/fetch-rss";
+import { fetchFeedPaged, extractOgImage } from "../lib/fetch-rss";
 import { summarize, isAIDisabled } from "../lib/summarize";
 import { hashContent } from "../lib/content-hash";
 import {
@@ -108,10 +108,14 @@ async function main() {
           idx++;
           const jobNum = idx;
           summarize(job.item, source.language)
-            .then((ai) => {
+            .then(async (ai) => {
               if (SKIP_NOT_CRIME && ai.category === "not_crime") {
                 result.skippedNotCrime++;
                 return;
+              }
+              let imageUrl = job.item.imageUrl;
+              if (!imageUrl) {
+                imageUrl = await extractOgImage(job.item.url);
               }
               summarized.push({
                 source_id: source.id,
@@ -120,7 +124,7 @@ async function main() {
                 title: job.item.title,
                 raw_excerpt: job.item.rawExcerpt,
                 content_html: job.item.contentHtml,
-                image_url: job.item.imageUrl,
+                image_url: imageUrl,
                 published_at: job.item.publishedAt.toISOString(),
                 fetched_at: new Date().toISOString(),
                 summary_th: ai.summary_th,

@@ -10,6 +10,7 @@
     "lint": "next lint",
     "fetch-news": "bun run scripts/fetch-news.ts",
     "backfill": "bun run scripts/backfill.ts",
+    "backfill-images": "bun run scripts/backfill-images.ts",
     "retag": "bun run scripts/retag.ts",
     "supabase:migrate": "bun run scripts/apply-migration.ts"
   },

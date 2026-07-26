@@ -55,6 +55,48 @@ export async function fetchFeed(url: string): Promise<FetchedItem[]> {
   return parseFeed(xml, url);
 }
 
+const OG_IMAGE_RE = /<meta\s+[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i;
+const OG_IMAGE_RE_REV = /<meta\s+[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i;
+const TWITTER_IMAGE_RE = /<meta\s+[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i;
+
+export async function extractOgImage(articleUrl: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch(articleUrl, {
+      headers: {
+        "user-agent": USER_AGENT,
+        accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5"
+      },
+      signal: controller.signal,
+      redirect: "follow"
+    });
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const match =
+      html.match(OG_IMAGE_RE) ??
+      html.match(OG_IMAGE_RE_REV) ??
+      html.match(TWITTER_IMAGE_RE);
+    if (!match) return null;
+
+    const raw = match[1];
+    if (!raw.startsWith("http")) {
+      try {
+        return new URL(raw, articleUrl).toString();
+      } catch {
+        return null;
+      }
+    }
+    return raw;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function fetchFeedPaged(
   baseUrl: string,
   pages: number,
