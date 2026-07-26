@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI, Type } from "@google/genai";
 import type { AISummary, CrimeCategory, FetchedItem } from "./types";
 
-const MODEL = process.env.SUMMARY_MODEL ?? "claude-haiku-4-5-20251001";
+const MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
 
 const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่าวอาชญากรรมในไทย หน้าที่ของคุณ:
 1. อ่านบทความที่ส่งให้ (อาจเป็นภาษาไทยหรือภาษาอื่น ๆ)
@@ -28,56 +28,57 @@ const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่
 - ห้ามใส่ความคิดเห็นส่วนตัว ห้ามใส่อารมณ์
 - ห้ามสรุปแบบ "ข่าวล่าสุด!" "อัปเดต!" ให้ข้อมูลตรง ๆ
 - ความยาวไม่เกิน 80 คำ
-- ถ้าต้นฉบับเป็นภาษาอังกฤษ/ภาษาอื่น ให้แปลชื่อคน/สถานที่เป็นไทย (เช่น "Washington" → "วอชิงตัน", "Trump" → "ทรัมป์")
-
-คืนค่า JSON ตามรูปแบบนี้เท่านั้น ไม่มี markdown:
-{"summary_th": "...", "category": "murder|theft_robbery|fraud_scam|drugs|cybercrime|white_collar|sexual|traffic|other_crime|not_crime", "confidence": 0.0-1.0, "location": "ชื่อจังหวัด/เมือง/ประเทศ หรือ null", "source_language": "th|en|zh|ja|ko|ar|es|fr|de|ru|vi|other", "is_translated": true|false}`;
-
-let client: Anthropic | null = null;
-let clientDisabled = false;
-
-function getClient(): Anthropic | null {
-  if (clientDisabled) return null;
-  if (client) return client;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || apiKey.length === 0) {
-    console.warn("[summarize] ANTHROPIC_API_KEY missing — storing articles without AI summary");
-    clientDisabled = true;
-    return null;
-  }
-  client = new Anthropic({ apiKey });
-  return client;
-}
-
-export function isAIDisabled(): boolean {
-  return process.env.ANTHROPIC_API_KEY == null || process.env.ANTHROPIC_API_KEY.length === 0;
-}
+- ถ้าต้นฉบับเป็นภาษาอังกฤษ/ภาษาอื่น ให้แปลชื่อคน/สถานที่เป็นไทย (เช่น "Washington" → "วอชิงตัน", "Trump" → "ทรัมป์")`;
 
 const VALID: CrimeCategory[] = [
   "murder", "theft_robbery", "fraud_scam", "drugs", "cybercrime",
   "white_collar", "sexual", "traffic", "other_crime", "not_crime"
 ];
 
-function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  // Strip ```json fences if model added them despite instructions
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = fence ? fence[1] : trimmed;
-  // Find the first { ... } block
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error("No JSON object found in model output");
+let client: GoogleGenAI | null = null;
+let clientDisabled = false;
+
+function getClient(): GoogleGenAI | null {
+  if (clientDisabled) return null;
+  if (client) return client;
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.length === 0) {
+    console.warn("[summarize] GEMINI_API_KEY missing — storing articles without AI summary");
+    clientDisabled = true;
+    return null;
   }
-  return JSON.parse(candidate.slice(start, end + 1));
+  client = new GoogleGenAI({ apiKey });
+  return client;
 }
+
+export function isAIDisabled(): boolean {
+  return process.env.GEMINI_API_KEY == null || process.env.GEMINI_API_KEY.length === 0;
+}
+
+const RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    summary_th: { type: Type.STRING },
+    category: {
+      type: Type.STRING,
+      enum: VALID
+    },
+    confidence: { type: Type.NUMBER },
+    location: { type: Type.STRING, nullable: true },
+    source_language: {
+      type: Type.STRING,
+      enum: ["th", "en", "zh", "ja", "ko", "ar", "es", "fr", "de", "ru", "vi", "other"]
+    },
+    is_translated: { type: Type.BOOLEAN }
+  },
+  required: ["summary_th", "category", "confidence", "source_language", "is_translated"]
+};
 
 export async function summarize(item: FetchedItem, sourceLanguage?: string): Promise<AISummary> {
   const input = buildPromptInput(item);
-  const anthropic = getClient();
+  const ai = getClient();
 
-  // Graceful degradation: no API key → store without summary
-  if (!anthropic) {
+  if (!ai) {
     return {
       summary_th: item.rawExcerpt ?? item.title,
       category: "other_crime",
@@ -92,33 +93,26 @@ export async function summarize(item: FetchedItem, sourceLanguage?: string): Pro
     ? `\n\nหมายเหตุ: แหล่งข่าวนี้ระบุภาษา = "${sourceLanguage}" (อาจต้องแปล)`
     : "";
 
-  const response = await anthropic.messages.create({
+  const response = await ai.models.generateContent({
     model: MODEL,
-    max_tokens: 260,
-    system: [
-      {
-        type: "text",
-        text: SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" }
-      }
-    ],
-    messages: [
-      {
-        role: "user",
-        content: `หัวข้อ: ${item.title}\n\nเนื้อหา:\n${input}${langHint}\n\nคืน JSON:`
-      }
-    ],
-    temperature: 0
+    contents: `หัวข้อ: ${item.title}\n\nเนื้อหา:\n${input}${langHint}`,
+    config: {
+      systemInstruction: SYSTEM_PROMPT,
+      temperature: 0,
+      maxOutputTokens: 400,
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA
+    }
   });
 
-  const text = response.content
-    .filter((c): c is Anthropic.TextBlock => c.type === "text")
-    .map((c) => c.text)
-    .join("");
+  const text = response.text ?? "";
+  if (text.length === 0) {
+    throw new Error("Gemini returned empty response");
+  }
 
-  const parsed = extractJson(text) as Record<string, unknown>;
+  const parsed = JSON.parse(text) as Record<string, unknown>;
   const rawCategory = typeof parsed.category === "string" ? parsed.category : "";
-  const category = VALID.includes(rawCategory as CrimeCategory)
+  const category: CrimeCategory = VALID.includes(rawCategory as CrimeCategory)
     ? (rawCategory as CrimeCategory)
     : "other_crime";
   const confidence =

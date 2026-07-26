@@ -16,7 +16,7 @@ interface ArticleRow {
 
 async function main() {
   if (isAIDisabled()) {
-    console.error("[retag] ANTHROPIC_API_KEY missing — set it and re-run");
+    console.error("[retag] GEMINI_API_KEY missing — set it and re-run");
     process.exit(1);
   }
 
@@ -75,7 +75,7 @@ async function main() {
               location: ai.location,
               source_language: ai.source_language,
               is_translated: ai.is_translated,
-              ai_model: "claude-haiku-4-5",
+              ai_model: "gemini-2.5-flash",
               summarized_at: new Date().toISOString()
             };
             const { error: updateError } = await sb

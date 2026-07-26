@@ -14,7 +14,7 @@
     "supabase:migrate": "bun run scripts/apply-migration.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.40.0",
+    "@google/genai": "^2.13.0",
     "@supabase/supabase-js": "^2.50.0",
     "fast-xml-parser": "^4.5.0",
     "next": "16.2.11",

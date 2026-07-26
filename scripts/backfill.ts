@@ -129,7 +129,7 @@ async function main() {
                 location: ai.location,
                 source_language: ai.source_language,
                 is_translated: ai.is_translated,
-                ai_model: AI_DISABLED ? "(none)" : "claude-haiku-4-5",
+                ai_model: AI_DISABLED ? "(none)" : "gemini-2.5-flash",
                 summarized_at: new Date().toISOString(),
                 content_hash: job.hash
               });
