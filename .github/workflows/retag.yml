@@ -1,12 +1,15 @@
 name: Re-tag articles with AI
 
 on:
+  schedule:
+    # Every hour at :17 — chips away at backlog
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       batch:
-        description: "Max articles to re-tag (default 500)"
+        description: "Max articles to re-tag (default 1000)"
         required: false
-        default: "500"
+        default: "1000"
 
 permissions:
   contents: read
@@ -18,7 +21,7 @@ concurrency:
 jobs:
   retag:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 55
     steps:
       - name: Checkout
         uses: actions/checkout@v4

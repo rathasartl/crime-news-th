@@ -2,7 +2,10 @@ import type { AISummary, CrimeCategory, FetchedItem } from "./types";
 
 const MODEL = process.env.GROQ_MODEL ?? "llama-3.1-8b-instant";
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 5;
+const RATE_LIMIT_PADDING_MS = 2000;
+const MIN_REQUEST_INTERVAL_MS = 12_000;
+let lastRequestMs = 0;
 
 const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่าวอาชญากรรมในไทย หน้าที่ของคุณ:
 1. อ่านบทความที่ส่งให้ (อาจเป็นภาษาไทยหรือภาษาอื่น ๆ)
@@ -96,6 +99,11 @@ export async function summarize(item: FetchedItem, sourceLanguage?: string): Pro
 
   let text = "";
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const waitForSlot = lastRequestMs + MIN_REQUEST_INTERVAL_MS - Date.now();
+    if (waitForSlot > 0 && attempt === 0) {
+      await new Promise((r) => setTimeout(r, waitForSlot));
+    }
+    lastRequestMs = Date.now();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
 
@@ -116,9 +124,9 @@ export async function summarize(item: FetchedItem, sourceLanguage?: string): Pro
         if (attempt === MAX_RETRIES) {
           throw new Error(`Groq rate limit: ${json.error?.message ?? "429"}`);
         }
-        const delay = 10_000 * (attempt + 1);
-        console.warn(`[summarize] 429 rate hit, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
-        await new Promise((r) => setTimeout(r, delay));
+        const waitMs = parseRetryMs(json.error?.message) + RATE_LIMIT_PADDING_MS;
+        console.warn(`[summarize] 429 rate hit, waiting ${Math.round(waitMs / 1000)}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise((r) => setTimeout(r, waitMs));
         continue;
       }
 
@@ -177,13 +185,22 @@ function stripCodeFence(s: string): string {
   return trimmed;
 }
 
+function parseRetryMs(message: string | undefined): number {
+  if (!message) return 15_000;
+  const m = message.match(/try again in\s+(\d+(?:\.\d+)?)\s*([ms])/i);
+  if (!m) return 15_000;
+  const n = parseFloat(m[1]);
+  const unit = m[2].toLowerCase();
+  return Math.max(1_000, unit === "m" ? n * 60_000 : n * 1_000);
+}
+
 function buildPromptInput(item: FetchedItem): string {
   const parts: string[] = [];
-  if (item.rawExcerpt) parts.push(item.rawExcerpt);
+  if (item.rawExcerpt) parts.push(item.rawExcerpt.slice(0, 600));
   if (item.contentHtml) {
     const stripped = item.contentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    if (stripped.length > 0) parts.push(stripped.slice(0, 1800));
+    if (stripped.length > 0) parts.push(stripped.slice(0, 800));
   }
   if (parts.length === 0) parts.push(item.title);
-  return parts.join("\n\n").slice(0, 2200);
+  return parts.join("\n\n").slice(0, 1200);
 }
