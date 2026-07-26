@@ -12,11 +12,14 @@ interface CacheEntry {
 
 const feedCache = new Map<string, CacheEntry>();
 
+export type LanguageScope = "all" | "thai" | "intl";
+
 export interface FeedOptions {
   limit?: number;
   hours?: number;
   category?: CrimeCategory | null;
   includeNotCrime?: boolean;
+  lang?: LanguageScope;
 }
 
 export interface FeedResult {
@@ -34,7 +37,8 @@ function cacheKey(opts: FeedOptions): string {
     limit: opts.limit ?? DEFAULT_LIMIT,
     hours: opts.hours ?? DEFAULT_HOURS,
     category: opts.category ?? null,
-    includeNotCrime: opts.includeNotCrime ?? false
+    includeNotCrime: opts.includeNotCrime ?? false,
+    lang: opts.lang ?? "all"
   });
 }
 
@@ -55,19 +59,43 @@ export async function getFeed(opts: FeedOptions = {}): Promise<FeedResult> {
   const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const category = opts.category ?? null;
   const includeNotCrime = opts.includeNotCrime ?? false;
+  const lang = opts.lang ?? "all";
 
-  const feedQuery = sb
-    .from("articles")
-    .select(
-      "id, source_id, url, title, raw_excerpt, content_html, image_url, published_at, summary_th, category, confidence, location, source_language, is_translated, click_count, hidden, source:sources(slug, name, language, country, emoji)"
-    )
-    .eq("hidden", false)
-    .gte("published_at", since)
-    .neq("category", includeNotCrime ? "_never_" : "not_crime");
+  const baseSelect =
+    "id, source_id, url, title, raw_excerpt, content_html, image_url, published_at, summary_th, category, confidence, location, source_language, is_translated, click_count, hidden, source:sources(slug, name, language, country, emoji)";
+
+  function applyLang<T>(q: T): T {
+    if (lang === "thai") {
+      // @ts-expect-error supabase builder chain
+      q = q.eq("is_translated", false);
+    } else if (lang === "intl") {
+      // @ts-expect-error supabase builder chain
+      q = q.eq("is_translated", true);
+    }
+    return q;
+  }
+
+  const feedQuery = applyLang(
+    sb
+      .from("articles")
+      .select(baseSelect)
+      .eq("hidden", false)
+      .gte("published_at", since)
+      .neq("category", includeNotCrime ? "_never_" : "not_crime")
+  );
 
   if (category) {
     feedQuery.eq("category", category);
   }
+
+  const countQuery = applyLang(
+    sb
+      .from("articles")
+      .select("category")
+      .eq("hidden", false)
+      .gte("published_at", since)
+      .neq("category", "not_crime")
+  );
 
   const [feedRes, countRes] = await Promise.all([
     feedQuery
@@ -77,12 +105,7 @@ export async function getFeed(opts: FeedOptions = {}): Promise<FeedResult> {
         if (r.error) throw new Error(`getFeed.articles: ${r.error.message}`);
         return r.data ?? [];
       }),
-    sb
-      .from("articles")
-      .select("category")
-      .eq("hidden", false)
-      .gte("published_at", since)
-      .neq("category", "not_crime")
+    countQuery
       .then((r) => {
         if (r.error) throw new Error(`getFeed.counts: ${r.error.message}`);
         return (r.data ?? []) as Pick<Article, "category">[];

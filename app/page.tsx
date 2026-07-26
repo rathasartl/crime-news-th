@@ -1,4 +1,4 @@
-import { getFeed } from "@/lib/queries";
+import { getFeed, type LanguageScope } from "@/lib/queries";
 import type { CrimeCategory } from "@/lib/types";
 import { Feed } from "@/components/Feed";
 import { Header } from "@/components/Header";
@@ -12,6 +12,8 @@ const VALID_CATEGORIES: CrimeCategory[] = [
   "white_collar", "sexual", "traffic", "other_crime"
 ];
 
+const VALID_LANGS: LanguageScope[] = ["all", "thai", "intl"];
+
 export default async function HomePage({
   searchParams
 }: {
@@ -24,16 +26,26 @@ export default async function HomePage({
       ? (catParam as CrimeCategory)
       : null;
 
+  const langParam = typeof params.lang === "string" ? params.lang : null;
+  const lang: LanguageScope =
+    langParam && VALID_LANGS.includes(langParam as LanguageScope)
+      ? (langParam as LanguageScope)
+      : "all";
+
   const { articles, categoryCounts } = await getFeed({
     category,
+    lang,
     limit: 30
   });
+
+  const count = Object.values(categoryCounts).reduce((s, n) => s + (n ?? 0), 0);
 
   return (
     <main className="mx-auto max-w-2xl px-5 pb-32">
       <Header
-        count={Object.values(categoryCounts).reduce((s, n) => s + (n ?? 0), 0)}
+        count={count}
         activeCategory={category}
+        activeLang={lang}
         categoryCounts={categoryCounts}
         lastUpdated={new Date()}
       />
