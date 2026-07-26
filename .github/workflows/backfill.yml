@@ -1,0 +1,46 @@
+name: Backfill historical news
+
+on:
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: "RSS pages per source (5 = ~30 days, 10 = ~90 days)"
+        required: false
+        default: "5"
+      max_age_hours:
+        description: "Max article age in hours (720 = 30d, 2160 = 90d)"
+        required: false
+        default: "720"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Run backfill
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BACKFILL_PAGES: ${{ github.event.inputs.pages }}
+          BACKFILL_MAX_AGE_HOURS: ${{ github.event.inputs.max_age_hours }}
+        run: bun run backfill

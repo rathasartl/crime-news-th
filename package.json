@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "fetch-news": "bun run scripts/fetch-news.ts",
+    "backfill": "bun run scripts/backfill.ts",
     "supabase:migrate": "bun run scripts/apply-migration.ts"
   },
   "dependencies": {

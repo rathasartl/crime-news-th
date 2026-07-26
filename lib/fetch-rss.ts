@@ -55,6 +55,36 @@ export async function fetchFeed(url: string): Promise<FetchedItem[]> {
   return parseFeed(xml, url);
 }
 
+export async function fetchFeedPaged(
+  baseUrl: string,
+  pages: number,
+  onPage?: (page: number, count: number) => void
+): Promise<FetchedItem[]> {
+  const all: FetchedItem[] = [];
+  for (let page = 1; page <= pages; page++) {
+    const url = appendPageParam(baseUrl, page);
+    try {
+      const items = await fetchFeed(url);
+      onPage?.(page, items.length);
+      all.push(...items);
+      if (items.length === 0) break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[fetch-rss] page ${page} of ${url} failed: ${msg}`);
+      break;
+    }
+  }
+  return all;
+}
+
+function appendPageParam(url: string, page: number): string {
+  if (page === 1) return url;
+  const u = new URL(url);
+  if (!u.search) return `${url}?paged=${page}`;
+  u.searchParams.set("paged", String(page));
+  return u.toString();
+}
+
 function pickFirstImage(item: any, channelBaseUrl?: string): string | null {
   const candidates = [
     item?.["media:content"]?.["@_url"],
