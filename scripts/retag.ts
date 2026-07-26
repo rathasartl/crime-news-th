@@ -3,7 +3,7 @@ import { getServerSupabase } from "../lib/supabase-server";
 import type { FetchedItem, CrimeCategory } from "../lib/types";
 
 const BATCH_SIZE = Number(process.env.RETAG_BATCH ?? "100");
-const SUMMARIZE_CONCURRENCY = 3;
+const SUMMARIZE_CONCURRENCY = 1;
 
 interface ArticleRow {
   id: string;
@@ -75,7 +75,7 @@ async function main() {
               location: ai.location,
               source_language: ai.source_language,
               is_translated: ai.is_translated,
-              ai_model: "gemini-2.5-flash",
+              ai_model: "gemini-2.0-flash",
               summarized_at: new Date().toISOString()
             };
             const { error: updateError } = await sb

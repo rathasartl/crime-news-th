@@ -10,7 +10,7 @@ import {
 } from "../lib/db";
 import type { FetchedItem } from "../lib/types";
 
-const SUMMARIZE_CONCURRENCY = 3;
+const SUMMARIZE_CONCURRENCY = 1;
 const SKIP_NOT_CRIME = process.env.SKIP_NOT_CRIME === "1";
 const MAX_AGE_HOURS = Number(process.env.MAX_AGE_HOURS ?? "48");
 const AI_DISABLED = isAIDisabled();
@@ -135,7 +135,7 @@ async function main() {
                 location: ai.location,
                 source_language: ai.source_language,
                 is_translated: ai.is_translated,
-                ai_model: AI_DISABLED ? "(none)" : "gemini-2.5-flash",
+                ai_model: AI_DISABLED ? "(none)" : "gemini-2.0-flash",
                 summarized_at: new Date().toISOString(),
                 content_hash: job.hash
               });

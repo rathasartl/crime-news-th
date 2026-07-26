@@ -1,7 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { AISummary, CrimeCategory, FetchedItem } from "./types";
 
-const MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+const MODEL = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+const MAX_RETRIES = 3;
 
 const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่าวอาชญากรรมในไทย หน้าที่ของคุณ:
 1. อ่านบทความที่ส่งให้ (อาจเป็นภาษาไทยหรือภาษาอื่น ๆ)
@@ -93,17 +94,35 @@ export async function summarize(item: FetchedItem, sourceLanguage?: string): Pro
     ? `\n\nหมายเหตุ: แหล่งข่าวนี้ระบุภาษา = "${sourceLanguage}" (อาจต้องแปล)`
     : "";
 
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: `หัวข้อ: ${item.title}\n\nเนื้อหา:\n${input}${langHint}`,
-    config: {
-      systemInstruction: SYSTEM_PROMPT,
-      temperature: 0,
-      maxOutputTokens: 400,
-      responseMimeType: "application/json",
-      responseSchema: RESPONSE_SCHEMA
+  const prompt = `หัวข้อ: ${item.title}\n\nเนื้อหา:\n${input}${langHint}`;
+  const config = {
+    systemInstruction: SYSTEM_PROMPT,
+    temperature: 0,
+    maxOutputTokens: 400,
+    responseMimeType: "application/json" as const,
+    responseSchema: RESPONSE_SCHEMA
+  };
+
+  let response;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      response = await ai.models.generateContent({
+        model: MODEL,
+        contents: prompt,
+        config
+      });
+      break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const is429 = msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED");
+      if (!is429 || attempt === MAX_RETRIES) throw err;
+      const delay = 15_000 * (attempt + 1);
+      console.warn(`[summarize] 429 quota hit, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+      await new Promise((r) => setTimeout(r, delay));
     }
-  });
+  }
+
+  if (!response) throw new Error("Gemini returned no response after retries");
 
   const text = response.text ?? "";
   if (text.length === 0) {
