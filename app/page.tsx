@@ -2,6 +2,7 @@ import { getFeed } from "@/lib/queries";
 import type { CrimeCategory } from "@/lib/types";
 import { Feed } from "@/components/Feed";
 import { Header } from "@/components/Header";
+import { TabBar } from "@/components/TabBar";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export default async function HomePage({
       />
       <Feed articles={articles} hasCategoryFilter={category !== null} />
       <Footer />
+      <TabBar active="home" />
     </main>
   );
 }

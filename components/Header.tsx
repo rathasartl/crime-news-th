@@ -5,6 +5,7 @@ import {
   CATEGORY_ORDER,
   type CrimeCategory
 } from "@/lib/types";
+import { BROWSABLE_CATEGORIES } from "@/lib/categories";
 
 const CSS_VAR_SUFFIX: Record<CrimeCategory, string> = {
   murder: "murder",
@@ -68,19 +69,29 @@ function CategoryFilter({
       <Pill href="/" active={activeCategory === null} count={total}>
         ทั้งหมด
       </Pill>
-      {CATEGORY_ORDER.filter((c) => c !== "not_crime" && (categoryCounts[c] ?? 0) > 0).map(
-        (c) => (
+      {BROWSABLE_CATEGORIES.map((c) => {
+        const count = categoryCounts[c.slug] ?? 0;
+        return (
           <Pill
-            key={c}
-            href={`/?category=${c}`}
-            active={activeCategory === c}
-            count={categoryCounts[c] ?? 0}
-            category={c}
+            key={c.slug}
+            href={`/?category=${c.slug}`}
+            active={activeCategory === c.slug}
+            count={count}
+            category={c.slug}
+            dim={count === 0}
           >
-            {CATEGORY_LABEL_TH[c]}
+            <span aria-hidden className="mr-0.5 text-[10px]">{c.icon}</span>
+            {c.label_th}
           </Pill>
-        )
-      )}
+        );
+      })}
+      <Link
+        href="/categories"
+        scroll={false}
+        className="flex shrink-0 items-center rounded-full border border-dashed border-[var(--color-rule)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-muted)] transition hover:border-[var(--color-ink-soft)] hover:text-[var(--color-ink-soft)]"
+      >
+        เมนู ↗
+      </Link>
     </nav>
   );
 }
@@ -90,22 +101,27 @@ function Pill({
   active,
   count,
   category,
+  dim = false,
   children
 }: {
   href: string;
   active: boolean;
   count: number;
   category?: CrimeCategory;
+  dim?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
       scroll={false}
+      aria-disabled={dim && !active}
       className={
         "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition " +
         (active
           ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-white"
+          : dim
+          ? "border-transparent bg-[var(--color-paper-warm)] text-[var(--color-muted)] hover:bg-white hover:text-[var(--color-ink-soft)]"
           : "border-[var(--color-rule)] bg-white text-[var(--color-ink-soft)] hover:border-[var(--color-ink-soft)]")
       }
       style={
@@ -114,7 +130,7 @@ function Pill({
           : undefined
       }
     >
-      {category && !active && (
+      {category && !active && !dim && (
         <span
           aria-hidden
           className="inline-block h-1 w-1 rounded-full"
@@ -122,7 +138,7 @@ function Pill({
         />
       )}
       <span>{children}</span>
-      <span className={"font-num text-[10px] " + (active ? "text-white/70" : "text-[var(--color-muted)]")}>
+      <span className={"font-num text-[10px] " + (active ? "text-white/70" : dim ? "text-[var(--color-muted)]" : "text-[var(--color-muted)]")}>
         {count}
       </span>
     </Link>
