@@ -4,10 +4,11 @@ import type { AISummary, CrimeCategory, FetchedItem } from "./types";
 const MODEL = process.env.SUMMARY_MODEL ?? "claude-haiku-4-5-20251001";
 
 const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่าวอาชญากรรมในไทย หน้าที่ของคุณ:
-1. อ่านบทความที่ส่งให้ (อาจเป็นภาษาไทยหรืออังกฤษ)
-2. สรุปให้สั้น 2-3 ประโยค เป็นภาษาไทยเสมอ ถ้าเป็นข่าวต่างประเทศให้แปลเป็นไทย
+1. อ่านบทความที่ส่งให้ (อาจเป็นภาษาไทยหรือภาษาอื่น ๆ)
+2. สรุปให้สั้น 2-3 ประโยค เป็นภาษาไทยเสมอ — ถ้าต้นฉบับไม่ใช่ภาษาไทย ต้องแปลเป็นไทย
 3. จัดหมวดหมู่อาชญากรรมให้ถูกต้อง
 4. ถ้าไม่ใช่ข่าวอาชญากรรม ให้ตั้ง category = "not_crime"
+5. ตรวจหาภาษาต้นฉบับ — ถ้าไม่ใช่ภาษาไทย ให้ตั้ง is_translated=true
 
 หมวดหมู่ที่ใช้ได้:
 - murder          ฆาตกรรม/พยายามฆ่า/ทำร้ายร่างกายรุนแรง
@@ -27,9 +28,10 @@ const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่
 - ห้ามใส่ความคิดเห็นส่วนตัว ห้ามใส่อารมณ์
 - ห้ามสรุปแบบ "ข่าวล่าสุด!" "อัปเดต!" ให้ข้อมูลตรง ๆ
 - ความยาวไม่เกิน 80 คำ
+- ถ้าต้นฉบับเป็นภาษาอังกฤษ/ภาษาอื่น ให้แปลชื่อคน/สถานที่เป็นไทย (เช่น "Washington" → "วอชิงตัน", "Trump" → "ทรัมป์")
 
 คืนค่า JSON ตามรูปแบบนี้เท่านั้น ไม่มี markdown:
-{"summary_th": "...", "category": "murder|theft_robbery|fraud_scam|drugs|cybercrime|white_collar|sexual|traffic|other_crime|not_crime", "confidence": 0.0-1.0, "location": "ชื่อจังหวัด/เข็ต/หรือ null"}`;
+{"summary_th": "...", "category": "murder|theft_robbery|fraud_scam|drugs|cybercrime|white_collar|sexual|traffic|other_crime|not_crime", "confidence": 0.0-1.0, "location": "ชื่อจังหวัด/เมือง/ประเทศ หรือ null", "source_language": "th|en|zh|ja|ko|ar|es|fr|de|ru|vi|other", "is_translated": true|false}`;
 
 let client: Anthropic | null = null;
 let clientDisabled = false;
@@ -70,7 +72,7 @@ function extractJson(text: string): unknown {
   return JSON.parse(candidate.slice(start, end + 1));
 }
 
-export async function summarize(item: FetchedItem): Promise<AISummary> {
+export async function summarize(item: FetchedItem, sourceLanguage?: string): Promise<AISummary> {
   const input = buildPromptInput(item);
   const anthropic = getClient();
 
@@ -80,13 +82,19 @@ export async function summarize(item: FetchedItem): Promise<AISummary> {
       summary_th: item.rawExcerpt ?? item.title,
       category: "other_crime",
       confidence: 0,
-      location: null
+      location: null,
+      source_language: sourceLanguage ?? "th",
+      is_translated: false
     };
   }
 
+  const langHint = sourceLanguage && sourceLanguage !== "th"
+    ? `\n\nหมายเหตุ: แหล่งข่าวนี้ระบุภาษา = "${sourceLanguage}" (อาจต้องแปล)`
+    : "";
+
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 220,
+    max_tokens: 260,
     system: [
       {
         type: "text",
@@ -97,7 +105,7 @@ export async function summarize(item: FetchedItem): Promise<AISummary> {
     messages: [
       {
         role: "user",
-        content: `หัวข้อ: ${item.title}\n\nเนื้อหา:\n${input}\n\nคืน JSON:`
+        content: `หัวข้อ: ${item.title}\n\nเนื้อหา:\n${input}${langHint}\n\nคืน JSON:`
       }
     ],
     temperature: 0
@@ -123,7 +131,22 @@ export async function summarize(item: FetchedItem): Promise<AISummary> {
   const location =
     locationRaw.length > 0 && locationRaw.toLowerCase() !== "null" ? locationRaw : null;
 
-  return { summary_th, category, confidence, location };
+  const detectedLang = typeof parsed.source_language === "string"
+    ? parsed.source_language.toLowerCase().trim()
+    : (sourceLanguage ?? "th");
+  const isTranslated =
+    typeof parsed.is_translated === "boolean"
+      ? parsed.is_translated
+      : detectedLang !== "th";
+
+  return {
+    summary_th,
+    category,
+    confidence,
+    location,
+    source_language: detectedLang,
+    is_translated: isTranslated
+  };
 }
 
 function buildPromptInput(item: FetchedItem): string {

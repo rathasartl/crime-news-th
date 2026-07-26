@@ -15,18 +15,24 @@ export interface ArticleInsert {
   category: string;
   confidence: number;
   location: string | null;
+  source_language: string;
+  is_translated: boolean;
   ai_model: string;
   summarized_at: string;
   content_hash: string;
 }
 
-export async function getActiveSources(): Promise<Source[]> {
+export async function getActiveSources(includeForeignLanguages: boolean): Promise<Source[]> {
   const sb = getServerSupabase();
-  const { data, error } = await sb
+  let q = sb
     .from("sources")
-    .select("id, slug, name, feed_url, site_url, language, is_active")
-    .eq("is_active", true)
-    .order("name");
+    .select("id, slug, name, feed_url, site_url, language, country, emoji, is_active")
+    .eq("is_active", true);
+  if (!includeForeignLanguages) {
+    // Skip non-Thai sources when AI is disabled (can't translate)
+    q = q.eq("language", "th");
+  }
+  const { data, error } = await q.order("name");
   if (error) throw new Error(`Failed to load sources: ${error.message}`);
   return (data ?? []) as Source[];
 }

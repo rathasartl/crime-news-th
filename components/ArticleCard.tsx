@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Article } from "@/lib/types";
 import { timeAgoTh } from "@/lib/time-ago";
 import { CategoryBadge } from "./CategoryBadge";
-import { SourceBadge } from "./SourceBadge";
+import { SourceBadge, TranslationBadge } from "./SourceBadge";
 
 interface Props {
   article: Article;
@@ -23,8 +23,15 @@ function MetaRow({ article }: { article: Article }) {
       {article.category && (
         <CategoryBadge category={article.category} confidence={article.confidence} size="xs" />
       )}
+      {article.is_translated && article.source_language && (
+        <TranslationBadge from={article.source_language} />
+      )}
       {article.source && (
-        <SourceBadge slug={article.source.slug} name={article.source.name} />
+        <SourceBadge
+          slug={article.source.slug}
+          name={article.source.name}
+          emoji={article.source.emoji}
+        />
       )}
       <span aria-hidden className="text-[var(--color-rule)]">·</span>
       <time dateTime={article.published_at} className="font-num">

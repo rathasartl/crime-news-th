@@ -1,5 +1,5 @@
 import { fetchFeed } from "../lib/fetch-rss";
-import { summarize } from "../lib/summarize";
+import { summarize, isAIDisabled } from "../lib/summarize";
 import { hashContent } from "../lib/content-hash";
 import {
   filterCandidates,
@@ -11,8 +11,9 @@ import {
 import type { FetchedItem } from "../lib/types";
 
 const SUMMARIZE_CONCURRENCY = 3;
-const SKIP_NOT_CRIME = process.env.SKIP_NOT_CRIME === "1"; // default: store but UI hides
+const SKIP_NOT_CRIME = process.env.SKIP_NOT_CRIME === "1";
 const MAX_AGE_HOURS = Number(process.env.MAX_AGE_HOURS ?? "48");
+const AI_DISABLED = isAIDisabled();
 
 interface FetchResult {
   source: string;
@@ -26,8 +27,14 @@ interface FetchResult {
 async function main() {
   const startedAt = Date.now();
   console.log(`[fetch-news] start at ${new Date().toISOString()}`);
+  if (AI_DISABLED) {
+    console.log(`[fetch-news] ⚠ AI disabled — fetching Thai sources only (foreign would be untranslated)`);
+  } else {
+    console.log(`[fetch-news] ✓ AI enabled — fetching all sources with translation`);
+  }
 
-  const sources = await getActiveSources();
+  // When AI disabled, skip non-Thai sources to avoid untranslated English in feed
+  const sources = await getActiveSources(!AI_DISABLED);
   if (sources.length === 0) {
     console.warn("[fetch-news] no active sources");
     return;
@@ -102,7 +109,7 @@ async function main() {
           active++;
           idx++;
           const jobNum = idx;
-          summarize(job.item)
+          summarize(job.item, source.language)
             .then((ai) => {
               if (SKIP_NOT_CRIME && ai.category === "not_crime") {
                 result.skippedNotCrime++;
@@ -122,7 +129,9 @@ async function main() {
                 category: ai.category,
                 confidence: ai.confidence,
                 location: ai.location,
-                ai_model: "claude-haiku-4-5",
+                source_language: ai.source_language,
+                is_translated: ai.is_translated,
+                ai_model: AI_DISABLED ? "(none)" : "claude-haiku-4-5",
                 summarized_at: new Date().toISOString(),
                 content_hash: job.hash
               });

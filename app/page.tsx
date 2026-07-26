@@ -47,15 +47,24 @@ export default async function HomePage({
 function Footer() {
   return (
     <footer className="mt-12 border-t border-[var(--color-rule)] pt-6 text-[11px] text-[var(--color-muted)]">
-      <p>
-        รวมข่าวจาก{" "}
+      <p className="font-medium text-[var(--color-ink-soft)]">🇹🇭 ไทย</p>
+      <p className="mt-1">
         <a className="underline" href="https://www.khaosod.co.th" target="_blank" rel="noopener">ข่าวสด</a>{" · "}
         <a className="underline" href="https://www.prachachat.net" target="_blank" rel="noopener">ประชาชาติ</a>{" · "}
         <a className="underline" href="https://thestandard.co" target="_blank" rel="noopener">เดอะสแตนดาร์ด</a>{" · "}
         <a className="underline" href="https://www.brighttv.co.th" target="_blank" rel="noopener">ไบรท์ทีวี</a>{" · "}
         <a className="underline" href="https://www.innnews.co.th" target="_blank" rel="noopener">เอ็นเน็วส์</a>
       </p>
-      <p className="mt-2">
+      <p className="mt-3 font-medium text-[var(--color-ink-soft)]">🌏 ต่างประเทศ (อังกฤษ → แปลไทยอัตโนมัติ)</p>
+      <p className="mt-1">
+        <a className="underline" href="https://www.bbc.com/news/world" target="_blank" rel="noopener">BBC World</a>{" · "}
+        <a className="underline" href="https://www.theguardian.com/world" target="_blank" rel="noopener">The Guardian</a>{" · "}
+        <a className="underline" href="https://www.nytimes.com/section/world" target="_blank" rel="noopener">NYT World</a>{" · "}
+        <a className="underline" href="https://www.aljazeera.com" target="_blank" rel="noopener">Al Jazeera</a>{" · "}
+        <a className="underline" href="https://abcnews.go.com/International" target="_blank" rel="noopener">ABC</a>{" · "}
+        <a className="underline" href="https://www.cbsnews.com/world" target="_blank" rel="noopener">CBS</a>
+      </p>
+      <p className="mt-3">
         <a
           className="underline"
           href="https://github.com/rathasartl/crime-news-th"

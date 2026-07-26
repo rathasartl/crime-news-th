@@ -68,7 +68,9 @@ export interface Source {
   name: string;
   feed_url: string;
   site_url: string | null;
-  language: string;
+  language: string;       // 'th' | 'en' | ...
+  country: string;        // ISO-2: 'TH', 'US', 'GB', ...
+  emoji: string | null;   // flag emoji
   is_active: boolean;
 }
 
@@ -85,11 +87,13 @@ export interface Article {
   category: CrimeCategory | null;
   confidence: number | null;
   location: string | null;
+  source_language: string;    // 'th' | 'en' | ...
+  is_translated: boolean;
   click_count: number;
   hidden: boolean;
 
   // joined
-  source?: Pick<Source, "slug" | "name">;
+  source?: Pick<Source, "slug" | "name" | "language" | "country" | "emoji">;
 }
 
 export interface FetchedItem {
@@ -107,4 +111,6 @@ export interface AISummary {
   category: CrimeCategory;
   confidence: number;
   location: string | null;
+  source_language: string;   // detected by AI: 'th' | 'en' | 'mixed' | ...
+  is_translated: boolean;
 }

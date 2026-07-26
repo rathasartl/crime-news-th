@@ -33,7 +33,7 @@ export async function getFeed(opts: FeedOptions = {}): Promise<FeedResult> {
     sb
       .from("articles")
       .select(
-        "id, source_id, url, title, raw_excerpt, content_html, image_url, published_at, summary_th, category, confidence, location, click_count, hidden, source:sources(slug, name)"
+        "id, source_id, url, title, raw_excerpt, content_html, image_url, published_at, summary_th, category, confidence, location, source_language, is_translated, click_count, hidden, source:sources(slug, name, language, country, emoji)"
       )
       .eq("hidden", false)
       .gte("published_at", since)
@@ -69,14 +69,20 @@ export async function getFeed(opts: FeedOptions = {}): Promise<FeedResult> {
 
   const rows = filtered as unknown as Array<
     Omit<Article, "source"> & {
-      source: { slug: string; name: string } | { slug: string; name: string }[] | null;
+      source:
+        | { slug: string; name: string; language?: string; country?: string | null; emoji?: string | null }
+        | { slug: string; name: string; language?: string; country?: string | null; emoji?: string | null }[]
+        | null;
     }
   >;
 
-  const articles = rows.map((r) => ({
-    ...r,
-    source: Array.isArray(r.source) ? r.source[0] : r.source ?? undefined
-  }));
+  const articles = rows.map((r) => {
+    const src = Array.isArray(r.source) ? r.source[0] : r.source;
+    return {
+      ...r,
+      source: src ?? undefined
+    } as Article;
+  });
 
   return { articles, categoryCounts };
 }
@@ -86,7 +92,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
   const { data, error } = await sb
     .from("articles")
     .select(
-      "id, source_id, url, title, raw_excerpt, content_html, image_url, published_at, summary_th, category, confidence, location, click_count, hidden, source:sources(slug, name)"
+      "id, source_id, url, title, raw_excerpt, content_html, image_url, published_at, summary_th, category, confidence, location, source_language, is_translated, click_count, hidden, source:sources(slug, name, language, country, emoji)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -105,10 +111,15 @@ export async function getArticleById(id: string): Promise<Article | null> {
     category: CrimeCategory | null;
     confidence: number | null;
     location: string | null;
+    source_language: string;
+    is_translated: boolean;
     click_count: number;
     hidden: boolean;
-    source: { slug: string; name: string } | { slug: string; name: string }[] | null;
+    source:
+      | { slug: string; name: string; language?: string; country?: string | null; emoji?: string | null }
+      | { slug: string; name: string; language?: string; country?: string | null; emoji?: string | null }[]
+      | null;
   };
   const src = Array.isArray(row.source) ? row.source[0] : row.source;
-  return { ...row, source: src ?? undefined };
+  return { ...row, source: src ?? undefined } as Article;
 }
