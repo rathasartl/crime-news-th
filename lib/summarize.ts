@@ -1,7 +1,7 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import type { AISummary, CrimeCategory, FetchedItem } from "./types";
 
-const MODEL = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+const MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MAX_RETRIES = 3;
 
 const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่าวอาชญากรรมในไทย หน้าที่ของคุณ:
@@ -29,57 +29,42 @@ const SYSTEM_PROMPT = `คุณเป็นบรรณาธิการข่
 - ห้ามใส่ความคิดเห็นส่วนตัว ห้ามใส่อารมณ์
 - ห้ามสรุปแบบ "ข่าวล่าสุด!" "อัปเดต!" ให้ข้อมูลตรง ๆ
 - ความยาวไม่เกิน 80 คำ
-- ถ้าต้นฉบับเป็นภาษาอังกฤษ/ภาษาอื่น ให้แปลชื่อคน/สถานที่เป็นไทย (เช่น "Washington" → "วอชิงตัน", "Trump" → "ทรัมป์")`;
+- ถ้าต้นฉบับเป็นภาษาอังกฤษ/ภาษาอื่น ให้แปลชื่อคน/สถานที่เป็นไทย
+
+คืนค่า JSON ตามรูปแบบนี้เท่านั้น ไม่มี markdown:
+{"summary_th": "...", "category": "murder|theft_robbery|fraud_scam|drugs|cybercrime|white_collar|sexual|traffic|other_crime|not_crime", "confidence": 0.0-1.0, "location": "ชื่อจังหวัด/เมือง/ประเทศ หรือ null", "source_language": "th|en|zh|ja|ko|ar|es|fr|de|ru|vi|other", "is_translated": true|false}`;
 
 const VALID: CrimeCategory[] = [
   "murder", "theft_robbery", "fraud_scam", "drugs", "cybercrime",
   "white_collar", "sexual", "traffic", "other_crime", "not_crime"
 ];
 
-let client: GoogleGenAI | null = null;
 let clientDisabled = false;
 
-function getClient(): GoogleGenAI | null {
+function getApiKey(): string | null {
   if (clientDisabled) return null;
-  if (client) return client;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey || apiKey.length === 0) {
-    console.warn("[summarize] GEMINI_API_KEY missing — storing articles without AI summary");
+    console.warn("[summarize] GROQ_API_KEY missing — storing articles without AI summary");
     clientDisabled = true;
     return null;
   }
-  client = new GoogleGenAI({ apiKey });
-  return client;
+  return apiKey;
 }
 
 export function isAIDisabled(): boolean {
-  return process.env.GEMINI_API_KEY == null || process.env.GEMINI_API_KEY.length === 0;
+  return process.env.GROQ_API_KEY == null || process.env.GROQ_API_KEY.length === 0;
 }
 
-const RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    summary_th: { type: Type.STRING },
-    category: {
-      type: Type.STRING,
-      enum: VALID
-    },
-    confidence: { type: Type.NUMBER },
-    location: { type: Type.STRING, nullable: true },
-    source_language: {
-      type: Type.STRING,
-      enum: ["th", "en", "zh", "ja", "ko", "ar", "es", "fr", "de", "ru", "vi", "other"]
-    },
-    is_translated: { type: Type.BOOLEAN }
-  },
-  required: ["summary_th", "category", "confidence", "source_language", "is_translated"]
-};
+interface GroqResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+  error?: { message: string };
+}
 
 export async function summarize(item: FetchedItem, sourceLanguage?: string): Promise<AISummary> {
-  const input = buildPromptInput(item);
-  const ai = getClient();
+  const apiKey = getApiKey();
 
-  if (!ai) {
+  if (!apiKey) {
     return {
       summary_th: item.rawExcerpt ?? item.title,
       category: "other_crime",
@@ -90,46 +75,69 @@ export async function summarize(item: FetchedItem, sourceLanguage?: string): Pro
     };
   }
 
+  const input = buildPromptInput(item);
   const langHint = sourceLanguage && sourceLanguage !== "th"
     ? `\n\nหมายเหตุ: แหล่งข่าวนี้ระบุภาษา = "${sourceLanguage}" (อาจต้องแปล)`
     : "";
 
-  const prompt = `หัวข้อ: ${item.title}\n\nเนื้อหา:\n${input}${langHint}`;
-  const config = {
-    systemInstruction: SYSTEM_PROMPT,
+  const body = {
+    model: MODEL,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `หัวข้อ: ${item.title}\n\nเนื้อหา:\n${input}${langHint}\n\nคืน JSON:`
+      }
+    ],
     temperature: 0,
-    maxOutputTokens: 400,
-    responseMimeType: "application/json" as const,
-    responseSchema: RESPONSE_SCHEMA
+    max_tokens: 500,
+    response_format: { type: "json_object" }
   };
 
-  let response;
+  let text = "";
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+
     try {
-      response = await ai.models.generateContent({
-        model: MODEL,
-        contents: prompt,
-        config
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal
       });
+
+      const json = (await res.json()) as GroqResponse;
+
+      if (res.status === 429 || (json.error && json.error.message.includes("rate"))) {
+        if (attempt === MAX_RETRIES) {
+          throw new Error(`Groq rate limit: ${json.error?.message ?? "429"}`);
+        }
+        const delay = 10_000 * (attempt + 1);
+        console.warn(`[summarize] 429 rate hit, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      if (!res.ok) {
+        throw new Error(`Groq HTTP ${res.status}: ${json.error?.message ?? "unknown"}`);
+      }
+
+      text = json.choices?.[0]?.message?.content ?? "";
       break;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const is429 = msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED");
-      if (!is429 || attempt === MAX_RETRIES) throw err;
-      const delay = 15_000 * (attempt + 1);
-      console.warn(`[summarize] 429 quota hit, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
-      await new Promise((r) => setTimeout(r, delay));
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
-  if (!response) throw new Error("Gemini returned no response after retries");
-
-  const text = response.text ?? "";
   if (text.length === 0) {
-    throw new Error("Gemini returned empty response");
+    throw new Error("Groq returned empty response after retries");
   }
 
-  const parsed = JSON.parse(text) as Record<string, unknown>;
+  const parsed = JSON.parse(stripCodeFence(text)) as Record<string, unknown>;
   const rawCategory = typeof parsed.category === "string" ? parsed.category : "";
   const category: CrimeCategory = VALID.includes(rawCategory as CrimeCategory)
     ? (rawCategory as CrimeCategory)
@@ -160,6 +168,13 @@ export async function summarize(item: FetchedItem, sourceLanguage?: string): Pro
     source_language: detectedLang,
     is_translated: isTranslated
   };
+}
+
+function stripCodeFence(s: string): string {
+  const trimmed = s.trim();
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) return fence[1].trim();
+  return trimmed;
 }
 
 function buildPromptInput(item: FetchedItem): string {

@@ -135,7 +135,7 @@ async function main() {
                 location: ai.location,
                 source_language: ai.source_language,
                 is_translated: ai.is_translated,
-                ai_model: AI_DISABLED ? "(none)" : "gemini-2.0-flash",
+                ai_model: AI_DISABLED ? "(none)" : (process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile"),
                 summarized_at: new Date().toISOString(),
                 content_hash: job.hash
               });

@@ -16,7 +16,7 @@ interface ArticleRow {
 
 async function main() {
   if (isAIDisabled()) {
-    console.error("[retag] GEMINI_API_KEY missing — set it and re-run");
+    console.error("[retag] GROQ_API_KEY missing — set it and re-run");
     process.exit(1);
   }
 
@@ -75,7 +75,7 @@ async function main() {
               location: ai.location,
               source_language: ai.source_language,
               is_translated: ai.is_translated,
-              ai_model: "gemini-2.0-flash",
+              ai_model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
               summarized_at: new Date().toISOString()
             };
             const { error: updateError } = await sb
