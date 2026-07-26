@@ -75,7 +75,7 @@ async function main() {
               location: ai.location,
               source_language: ai.source_language,
               is_translated: ai.is_translated,
-              ai_model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
+              ai_model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
               summarized_at: new Date().toISOString()
             };
             const { error: updateError } = await sb

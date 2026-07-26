@@ -1,6 +1,6 @@
 import type { AISummary, CrimeCategory, FetchedItem } from "./types";
 
-const MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+const MODEL = process.env.GROQ_MODEL ?? "llama-3.1-8b-instant";
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MAX_RETRIES = 3;
 
