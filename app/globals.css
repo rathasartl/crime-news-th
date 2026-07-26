@@ -1,37 +1,100 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: oklch(15% 0.01 250);
-  --color-paper: oklch(98% 0.005 250);
-  --color-accent: oklch(62% 0.21 25);
-  --color-accent-soft: oklch(95% 0.03 25);
-  --color-muted: oklch(50% 0.01 250);
-  --color-rule: oklch(92% 0.005 250);
-  --font-sans: "IBM Plex Sans Thai", "Inter", system-ui, -apple-system, sans-serif;
-  --font-serif: "IBM Plex Serif", "Noto Serif Thai", Georgia, serif;
+  /* Editorial palette — warm paper, deep ink, category accents */
+  --color-ink: oklch(18% 0.012 264);
+  --color-ink-soft: oklch(35% 0.012 264);
+  --color-muted: oklch(52% 0.010 264);
+  --color-rule: oklch(90% 0.005 264);
+  --color-rule-soft: oklch(94% 0.004 264);
+  --color-paper: oklch(98.5% 0.004 264);
+  --color-paper-warm: oklch(97% 0.008 60);
+  --color-accent: oklch(58% 0.20 25);
+  --color-accent-soft: oklch(95% 0.025 25);
+
+  /* Category colors — distinct hues, all readable on paper */
+  --color-cat-murder: oklch(56% 0.21 27);
+  --color-cat-theft: oklch(60% 0.18 50);
+  --color-cat-fraud: oklch(64% 0.16 78);
+  --color-cat-drugs: oklch(58% 0.17 145);
+  --color-cat-cyber: oklch(58% 0.18 250);
+  --color-cat-collar: oklch(52% 0.13 290);
+  --color-cat-sexual: oklch(58% 0.20 340);
+  --color-cat-traffic: oklch(60% 0.14 195);
+  --color-cat-other: oklch(48% 0.015 264);
+  --color-cat-none: oklch(70% 0.008 264);
+
+  --font-sans: "IBM Plex Sans Thai Looped", "IBM Plex Sans Thai", "Inter", system-ui, -apple-system, sans-serif;
+  --font-serif: "IBM Plex Serif", "Noto Serif Thai", "Sarabun", Georgia, serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-card: 14px;
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.04), 0 0 0 1px oklch(0% 0 0 / 0.04);
+  --shadow-lift: 0 4px 12px oklch(0% 0 0 / 0.06), 0 1px 3px oklch(0% 0 0 / 0.05);
 }
 
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
   }
   body {
     background: var(--color-paper);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-feature-settings: "kern", "liga";
+    font-feature-settings: "kern", "liga", "calt";
   }
   ::selection {
     background: var(--color-accent);
     color: white;
   }
+  /* Hide scrollbar on filter bar but keep functional */
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 }
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
   .text-pretty { text-wrap: pretty; }
-  .scroll-shadow-top {
-    background: linear-gradient(to bottom, var(--color-paper), transparent);
+  .font-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  .hero-headline {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: -0.018em;
+    line-height: 1.05;
   }
+  .article-headline {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    line-height: 1.18;
+  }
+  .lead-text {
+    font-family: var(--font-sans);
+    line-height: 1.55;
+    letter-spacing: -0.003em;
+  }
+}
+
+/* Subtle fade-in for feed items */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.32s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+/* Image skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,
+    oklch(94% 0.005 264) 0%,
+    oklch(96% 0.005 264) 50%,
+    oklch(94% 0.005 264) 100%);
+  background-size: 936px 100%;
+  animation: shimmer 1.6s linear infinite;
 }

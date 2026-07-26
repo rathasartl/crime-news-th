@@ -37,16 +37,29 @@ export const CATEGORY_LABEL_TH: Record<CrimeCategory, string> = {
 };
 
 export const CATEGORY_COLOR: Record<CrimeCategory, string> = {
-  murder: "oklch(58% 0.22 27)",
-  theft_robbery: "oklch(62% 0.18 50)",
-  fraud_scam: "oklch(65% 0.16 80)",
-  drugs: "oklch(60% 0.18 145)",
-  cybercrime: "oklch(60% 0.18 250)",
-  white_collar: "oklch(55% 0.12 290)",
-  sexual: "oklch(60% 0.20 340)",
-  traffic: "oklch(62% 0.14 200)",
-  other_crime: "oklch(50% 0.02 250)",
-  not_crime: "oklch(75% 0.01 250)"
+  murder: "var(--color-cat-murder)",
+  theft_robbery: "var(--color-cat-theft)",
+  fraud_scam: "var(--color-cat-fraud)",
+  drugs: "var(--color-cat-drugs)",
+  cybercrime: "var(--color-cat-cyber)",
+  white_collar: "var(--color-cat-collar)",
+  sexual: "var(--color-cat-sexual)",
+  traffic: "var(--color-cat-traffic)",
+  other_crime: "var(--color-cat-other)",
+  not_crime: "var(--color-cat-none)"
+};
+
+export const CATEGORY_CSS_VAR: Record<CrimeCategory, string> = {
+  murder: "--color-cat-murder",
+  theft_robbery: "--color-cat-theft",
+  fraud_scam: "--color-cat-fraud",
+  drugs: "--color-cat-drugs",
+  cybercrime: "--color-cat-cyber",
+  white_collar: "--color-cat-collar",
+  sexual: "--color-cat-sexual",
+  traffic: "--color-cat-traffic",
+  other_crime: "--color-cat-other",
+  not_crime: "--color-cat-none"
 };
 
 export interface Source {
