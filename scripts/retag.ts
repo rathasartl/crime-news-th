@@ -23,12 +23,12 @@ async function main() {
   const startedAt = Date.now();
   const sb = getServerSupabase();
 
-  console.log(`[retag] fetching up to ${BATCH_SIZE} articles tagged (none) or with low confidence...`);
+  console.log(`[retag] fetching up to ${BATCH_SIZE} articles with no AI tag or low confidence...`);
 
   const { data, error } = await sb
     .from("articles")
     .select("id, title, raw_excerpt, content_html, url, source_language")
-    .or("ai_model.eq.(none),confidence.lt.0.5")
+    .lt("confidence", 0.5)
     .order("published_at", { ascending: false })
     .limit(BATCH_SIZE);
 
