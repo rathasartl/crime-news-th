@@ -1,8 +1,16 @@
 import { getServerSupabase } from "./supabase-server";
 import type { Article, CrimeCategory } from "./types";
 
-const DEFAULT_LIMIT = 60;
+const DEFAULT_LIMIT = 30;
 const DEFAULT_HOURS = 24;
+const CACHE_TTL_MS = 60_000;
+
+interface CacheEntry {
+  ts: number;
+  data: FeedResult;
+}
+
+const feedCache = new Map<string, CacheEntry>();
 
 export interface FeedOptions {
   limit?: number;
@@ -21,7 +29,26 @@ export async function getArticles(opts: FeedOptions = {}): Promise<Article[]> {
   return result.articles;
 }
 
+function cacheKey(opts: FeedOptions): string {
+  return JSON.stringify({
+    limit: opts.limit ?? DEFAULT_LIMIT,
+    hours: opts.hours ?? DEFAULT_HOURS,
+    category: opts.category ?? null,
+    includeNotCrime: opts.includeNotCrime ?? false
+  });
+}
+
+export function clearFeedCache(): void {
+  feedCache.clear();
+}
+
 export async function getFeed(opts: FeedOptions = {}): Promise<FeedResult> {
+  const key = cacheKey(opts);
+  const hit = feedCache.get(key);
+  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) {
+    return hit.data;
+  }
+
   const sb = getServerSupabase();
   const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, 200);
   const hours = opts.hours ?? DEFAULT_HOURS;
@@ -84,7 +111,9 @@ export async function getFeed(opts: FeedOptions = {}): Promise<FeedResult> {
     } as Article;
   });
 
-  return { articles, categoryCounts };
+  const result: FeedResult = { articles, categoryCounts };
+  feedCache.set(key, { ts: Date.now(), data: result });
+  return result;
 }
 
 export async function getArticleById(id: string): Promise<Article | null> {

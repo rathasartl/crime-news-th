@@ -24,8 +24,8 @@
   --color-cat-other: oklch(48% 0.015 264);
   --color-cat-none: oklch(70% 0.008 264);
 
-  --font-sans: "IBM Plex Sans Thai Looped", "IBM Plex Sans Thai", "Inter", system-ui, -apple-system, sans-serif;
-  --font-serif: "IBM Plex Serif", "Noto Serif Thai", "Sarabun", Georgia, serif;
+  --font-sans: var(--font-ibm-sans), system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-ibm-serif), var(--font-noto-serif-thai), Georgia, serif;
   --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
 
   --radius-card: 14px;

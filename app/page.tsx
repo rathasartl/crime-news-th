@@ -26,7 +26,7 @@ export default async function HomePage({
 
   const { articles, categoryCounts } = await getFeed({
     category,
-    limit: 50
+    limit: 30
   });
 
   return (
